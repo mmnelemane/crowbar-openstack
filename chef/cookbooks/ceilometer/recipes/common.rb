@@ -1,5 +1,27 @@
+#
+# Copyright 2015 SUSE Linux GmbH
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Cookbook Name:: ceilometer
+# Recipe:: common
+#
 
 keystone_settings = KeystoneHelper.keystone_settings(node, @cookbook_name)
+
+# Variables to update Radosgw keys if enabled.
+@rgw_access_key = "<None>"
+@rgw_secret_key = "<None>"
 
 if node[:ceilometer][:use_mongodb]
   db_connection = nil
@@ -83,6 +105,23 @@ if event_time_to_live > 0
   event_time_to_live = event_time_to_live * 3600 * 24
 end
 
+if !is_swift_proxy 
+  env = "--os-username #{keystone_settings["admin_user"]} "+
+        "--os-password #{keystone_settings["admin_password"]} "+
+        "--os-auth_url #{keystone_settings["admin_auth_url"]} "+
+        "--os-tenant-name #{keystone_settings["admin_tenant"]}"
+
+  cmd = "openstack #{env} ec2 credentials list --user rgw_admin -c Access -f value"
+  get_ec2_access = Mixlib::ShellOut.new(cmd)
+  @rgw_access_key = get_ec2_access.run_command.stdout
+
+  cmd = "openstack #{env} ec2 credentials list --user rgw_admin -c Secret -f value"
+  get_ec2_secret = Mixlib::ShellOut.new(cmd)
+  @rgw_secret_key = get_ec2_secret.run_command.stdout
+
+  include_recipe "#{@cookbook_name}:ceph.rb"
+end
+
 template "/etc/ceilometer/ceilometer.conf" do
     source "ceilometer.conf.erb"
     owner "root"
@@ -102,6 +141,8 @@ template "/etc/ceilometer/ceilometer.conf" do
       libvirt_type: libvirt_type,
       metering_time_to_live: metering_time_to_live,
       event_time_to_live: event_time_to_live,
+      rgw_access: @rgw_access_key,
+      rgw_secret: @rgw_secret_key,
       alarm_threshold_evaluation_interval: node[:ceilometer][:alarm_threshold_evaluation_interval]
     )
     if is_compute_agent
