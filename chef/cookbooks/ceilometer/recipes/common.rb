@@ -83,6 +83,95 @@ if event_time_to_live > 0
   event_time_to_live = event_time_to_live * 3600 * 24
 end
 
+# Obtain radosgw access and secret keys for rgw admin
+rgw_access_key = "<None>"
+rgw_secret_key = "<None>"
+ruid = "rgw_admin"
+# Prepare controller with the rgw_admin role
+if !is_swift_proxy && node.roles.include?("ceilometer-polling")
+
+  os_auth_url_v2 = KeystoneHelper.versioned_service_URL(keystone_settings["protocol"],
+                                                        keystone_settings["internal_url_host"],
+                                                        keystone_settings["service_port"],
+                                                        "2.0")
+
+  env = "--os-username #{keystone_settings["admin_user"]} --os-password #{keystone_settings["admin_password"]} --os-auth-url #{os_auth_url_v2} --os-tenant-name #{keystone_settings["admin_tenant"]}"
+  execute "create_rgw_admin_role" do
+    command "openstack #{env} role create #{ruid}"
+    not_if "out=$(openstack #{env} role show #{ruid} -c name -f value) ; [$? != 0] || echo ${out} | grep -q '#{ruid}'"
+    action :run
+  end
+  execute "create_rgw_admin_user" do
+    command "openstack #{env} user create #{ruid}"
+    not_if "out=$(openstack #{env} user show #{ruid}) ; [$? != 0] || echo ${out} | grep -q '#{ruid}'"
+    action :run
+  end
+  execute "add_role_to_rgw_admin_user" do
+    command "openstack #{env} role add #{ruid} --user #{ruid} --project openstack"
+    not_if "out=$(openstack #{env} user role list #{ruid} --project openstack) ; [$? != 0] || echo ${out} | grep -q '#{ruid}'"
+    action :run
+  end
+  execute "add_ec2_credentials" do
+    command "openstack #{env} ec2 credentials create --user #{ruid} --project openstack"
+    not_if "out=$(openstack #{env} ec2 credentials list --user #{ruid}) ; [$? != 0] || echo ${out} | grep -q 'Access'"
+    action :run
+  end
+  cmd = "openstack #{env} ec2 credentials list --user #{ruid} -c Access -f value"
+  get_ec2_access = Mixlib::ShellOut.new(cmd)
+  rgw_access_key = get_ec2_access.run_command.stdout
+
+  cmd = "openstack #{env} ec2 credentials list --user #{ruid} -c Secret -f value"
+  get_ec2_secret = Mixlib::ShellOut.new(cmd)
+  rgw_secret_key = get_ec2_secret.run_command.stdout
+end
+
+if !is_swift_proxy && node.roles.include?("ceph-radosgw")
+  cmd = ["ceph", "health"]
+  check_ceph = Mixlib::ShellOut.new(cmd)
+
+  if check_ceph.run_command.stdout =~ "HEALTH_OK"
+    Chef::Log.info("Ceph Cluster is Healthy. Doing admin user setup.")
+    # Create admin user and add caps to access buckets and users
+    if rgw_access_key != "<None>" && rgw_secret_key != "<None>"
+      execute "create_rgw_admin_user_with_keys" do
+        command "radosgw-admin user create --display-name=Radosgw_Admin --uid=#{ruid} --access-key=#{rgw_access_key} --secret=#{rgw_secret_key}"
+        not_if "out=$(radosgw-admin user info --uid=#{ruid}); [$? != 0] || echo ${out} | grep -q '#{ruid}'"
+        action :run
+        notifies :run, "execute[add_radosgw_buckets_caps]", :immediately
+      end
+    else
+      execute "create_radosgw_admin_user" do
+        command "radosgw-admin user create --display-name=RadosGW_Admin --uid=#{ruid}"
+        not_if "out=$(radosgw-admin user info #{ruid}) ; [$? != 0] || echo ${out} | grep -q '#{ruid}'"
+        action :run
+        notifies :run, "execute[add_radosgw_buckets_caps]", :immediately
+      end
+
+      cmd = "radosgw-admin user info --uid=#{ruid}"
+      shell_cmd = Mixlib::ShellOut.new(cmd)
+      out = shell_cmd.run_command.stdout
+      unless out.empty?
+        rgw_keys = JSON.parse(out)
+        rgw_access_key = rgw_keys["keys"][0]["access_key"]
+        rgw_secret_key = rgw_keys["keys"][0]["secret_key"]
+      end
+    end
+
+    execute "add_radosgw_buckets_caps" do
+      command "radosgw-admin caps add --uid=#{ruid} --caps='buckets=*'"
+      only_if "out=$(radosgw-admin user info #{ruid}) ; [$? != 0] || echo ${out} | grep -q '#{ruid}'"
+      action :run
+      notifies :run, "execute[add_radosgw_users_caps]", :immediately
+    end
+
+    execute "add_radosgw_users_caps" do
+      command "radosgw-admin caps add --uid=#{ruid} --caps='users=*'"
+      only_if "out=$(radosgw-admin user info #{ruid}) ; [$? != 0] || echo ${out} | grep -q '#{ruid}'"
+      action :run
+    end
+  end
+end
+
 template "/etc/ceilometer/ceilometer.conf" do
     source "ceilometer.conf.erb"
     owner "root"
@@ -102,6 +191,8 @@ template "/etc/ceilometer/ceilometer.conf" do
       libvirt_type: libvirt_type,
       metering_time_to_live: metering_time_to_live,
       event_time_to_live: event_time_to_live,
+      rgw_access: rgw_access_key,
+      rgw_secret: rgw_secret_key,
       alarm_threshold_evaluation_interval: node[:ceilometer][:alarm_threshold_evaluation_interval]
     )
     if is_compute_agent
