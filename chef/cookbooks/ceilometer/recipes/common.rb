@@ -1,3 +1,21 @@
+#
+# Copyright 2015 SUSE Linux GmbH
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Cookbook Name:: ceilometer
+# Recipe:: common
+#
 
 keystone_settings = KeystoneHelper.keystone_settings(node, @cookbook_name)
 
@@ -82,6 +100,11 @@ end
 if event_time_to_live > 0
   event_time_to_live = event_time_to_live * 3600 * 24
 end
+if !is_swift_proxy
+  include_recipe "ceilometer::ceph"
+end
+
+Chef::Log.info("MMNELEMANE: common.rb : Access: #{node[:ceilometer][:rbd][:rgw_access_key]}, Secret: #{node[:ceilometer][:rbd][:rgw_secret_key]}")
 
 template "/etc/ceilometer/ceilometer.conf" do
     source "ceilometer.conf.erb"
@@ -102,6 +125,8 @@ template "/etc/ceilometer/ceilometer.conf" do
       libvirt_type: libvirt_type,
       metering_time_to_live: metering_time_to_live,
       event_time_to_live: event_time_to_live,
+      rgw_access: node[:ceilometer][:rbd][:rgw_access_key],
+      rgw_secret: node[:ceilometer][:rbd][:rgw_secret_key],
       alarm_threshold_evaluation_interval: node[:ceilometer][:alarm_threshold_evaluation_interval]
     )
     if is_compute_agent

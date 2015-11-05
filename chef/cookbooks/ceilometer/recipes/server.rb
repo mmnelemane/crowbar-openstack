@@ -128,7 +128,6 @@ else
   package "ceilometer-alarm-evaluator"
   package "ceilometer-alarm-notifier"
 end
-
 include_recipe "#{@cookbook_name}::common"
 
 directory "/var/cache/ceilometer" do
@@ -270,6 +269,67 @@ unless swift_middlewares.empty?
     tenant_name keystone_settings["service_tenant"]
     role_name "ResellerAdmin"
     action :add_access
+  end
+end
+
+# Prepare controller with the rgw_admin role
+ceph_env_filter = " AND ceph_config_environment:ceph-config-default"
+ceph_servers = search(:node, "roles:ceph-osd#{ceph_env_filter}") || []
+unless ceph_servers.empty?
+  Chef::Log.info("MMNELEMANE: Inside server.rb. Creating rgw user")
+  rgw_userid = "rgw_admin"
+  keystone_register "create radosgw admin role" do
+    protocol keystone_settings["protocol"]
+    insecure keystone_settings["insecure"]
+    host keystone_settings["internal_url_host"]
+    port keystone_settings["admin_port"]
+    token keystone_settings["admin_token"]
+    role_name rgw_userid
+    action :add_role
+  end
+  
+  keystone_register "give #{@cookbook_name} user rgw_admin access" do
+    protocol keystone_settings["protocol"]
+    insecure keystone_settings["insecure"]
+    host keystone_settings["internal_url_host"]
+    port keystone_settings["admin_port"]
+    token keystone_settings["admin_token"]
+    user_name "#{@cookbook_name}"
+    role_name rgw_userid
+    tenant_name keystone_settings["service_tenant"]
+    action :add_access
+  end
+  
+  keystone_register "add default ec2 creds for #{rgw_userid}" do
+    protocol keystone_settings["protocol"]
+    insecure keystone_settings["insecure"]
+    host keystone_settings["internal_url_host"]
+    port keystone_settings["admin_port"]
+    token keystone_settings["admin_token"]
+    auth ({
+      tenant: keystone_settings["admin_tenant"],
+      user: keystone_settings["admin_user"],
+      password: keystone_settings["admin_password"]
+    })
+    user_name rgw_userid
+    tenant_name keystone_settings["admin_tenant"]
+    action :add_ec2
+  end
+  
+  keystone_register "add default ec2 creds for #{@cookbook_name}" do
+    protocol keystone_settings["protocol"]
+    insecure keystone_settings["insecure"]
+    host keystone_settings["internal_url_host"]
+    port keystone_settings["admin_port"]
+    token keystone_settings["admin_token"]
+    auth ({
+      tenant: keystone_settings["admin_tenant"],
+      user: keystone_settings["admin_user"],
+      password: keystone_settings["admin_password"]
+    })
+    user_name "#{@cookbook_name}"
+    tenant_name keystone_settings["service_tenant"]
+    action :add_ec2
   end
 end
 

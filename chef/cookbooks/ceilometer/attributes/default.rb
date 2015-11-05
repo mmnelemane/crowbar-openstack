@@ -65,6 +65,9 @@ default[:ceilometer][:metering_secret] = "" # Set by wrapper
 default[:ceilometer][:database][:metering_time_to_live] = -1
 default[:ceilometer][:database][:event_time_to_live] = -1
 
+default[:ceilometer][:rbd][:rgw_access_key] = ""
+default[:ceilometer][:rbd][:rgw_secret_key] = ""
+
 default[:ceilometer][:mongodb][:port] = 27017
 
 default[:ceilometer][:ha][:server][:enabled] = false
