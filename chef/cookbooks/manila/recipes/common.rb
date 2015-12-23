@@ -142,4 +142,14 @@ template "/etc/manila/manila.conf" do
   )
 end
 
+# dependency for manilaclient tests
+package "python-manilaclient"
+
+template "/etc/manilaclient/manilaclient.conf" do
+  source "manilaclient.conf.erb"
+  owner "root"
+  group node[:manila][:group]
+  mode 0640
+end
+
 node.save
