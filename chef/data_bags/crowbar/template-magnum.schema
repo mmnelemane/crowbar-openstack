@@ -22,6 +22,13 @@
             "rabbitmq_instance": { "type": "str", "required": true },
             "service_user": { "type": "str", "required": true },
             "service_password": { "type": "str", "required": true },
+            "trustee": {
+              "type": "map", "required": true, "mapping": {
+                "domain_name": { "type" : "str", "required" : true },
+                "domain_admin_name": { "type": "str", "required": true },
+                "domain_admin_password": { "type": "str", "required": true }
+              }
+            },
             "api": {
               "type": "map", "required": true, "mapping": {
                 "protocol": { "type" : "str", "required" : true },

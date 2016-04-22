@@ -13,6 +13,11 @@
       "rabbitmq_instance": "none",
       "service_user": "magnum",
       "service_password": "",
+      "trustee": {
+          "domain_name": "magnum",
+          "domain_admin_name": "magnum_domain_admin",
+          "domain_admin_password": ""
+      },
       "api": {
         "protocol": "http",
         "bind_open_address": true,
