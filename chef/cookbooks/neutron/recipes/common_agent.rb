@@ -252,7 +252,8 @@ if neutron[:neutron][:networking_plugin] == "ml2"
   end
 
   # L3 agent
-  if neutron[:neutron][:use_dvr] || node.roles.include?("neutron-network")
+  if neutron[:neutron][:use_dvr] || node.roles.include?("neutron-network") && \
+    !neutron[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2")
     pkgs = [node[:neutron][:platform][:l3_agent_pkg]] + \
            node[:neutron][:platform][:pkgs_fwaas]
     pkgs.each { |p| package p }
@@ -286,14 +287,15 @@ if neutron[:neutron][:networking_plugin] == "ml2"
       if nova_compute_ha_enabled
         supports no_crm_maintenance_mode: true
       else
-        supports status: true, restart: true
+        supports status: true, restart: true, disable: true, stop: true
       end
     end
   end
 end
 
 # Metadata agent
-if neutron[:neutron][:use_dvr] || node.roles.include?("neutron-network")
+if neutron[:neutron][:use_dvr] || node.roles.include?("neutron-network") && \
+  !neutron[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2")
   package node[:neutron][:platform][:metadata_agent_pkg]
 
   #TODO: nova should depend on neutron, but neutron also depends on nova
@@ -341,7 +343,7 @@ if neutron[:neutron][:use_dvr] || node.roles.include?("neutron-network")
     if nova_compute_ha_enabled
       supports no_crm_maintenance_mode: true
     else
-      supports status: true, restart: true
+      supports status: true, restart: true, disable: true, stop: true
     end
   end
 end

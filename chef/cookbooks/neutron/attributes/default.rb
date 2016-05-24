@@ -52,6 +52,11 @@ default[:neutron][:ssl][:insecure] = false
 default[:neutron][:ssl][:cert_required] = false
 default[:neutron][:ssl][:ca_certs] = "/etc/neutron/ssl/certs/ca.pem"
 
+default[:neutron][:apic][:system_id] = "SOC"
+default[:neutron][:apic][:hosts] = ""
+default[:neutron][:apic][:username] = "admin"
+default[:neutron][:apic][:password] = ""
+
 case node[:platform_family]
 when "suse"
   default[:neutron][:platform] = {
@@ -81,6 +86,9 @@ when "suse"
     nsx_pkgs: ["openvswitch-pki",
                    "ruby2.1-rubygem-faraday"],
     cisco_pkgs: ["python-networking-cisco"],
+    cisco_apic_pkgs: ["openstack-neutron-opflex-agent",
+                      "python-apicapi",
+                      "python-neutron-ml2-driver-apic"],
     user: "neutron",
     group: "neutron",
     neutron_rootwrap_sudo_template: "/etc/sudoers.d/openstack-neutron"
@@ -112,6 +120,9 @@ when "rhel"
     hyperv_pkg: "",
     nsx_pkgs: [""],
     cisco_pkgs: ["python-networking-cisco"],
+    cisco_apic_pkgs: ["openstack-neutron-opflex-agent",
+                      "python-apicapi",
+                      "python-neutron-ml2-driver-apic"],
     user: "neutron",
     group: "neutron",
     neutron_rootwrap_sudo_template: "/etc/sudoers.d/openstack-neutron"
@@ -144,6 +155,7 @@ else
     hyperv_pkg: "python-networking-hyperv",
     nsx_pkgs: [""],
     cisco_pkgs: [""],
+    cisco_apic_pkgs: [""],
     user: "neutron",
     group: "neutron",
     neutron_rootwrap_sudo_template: "/etc/sudoers.d/neutron-rootwrap"
