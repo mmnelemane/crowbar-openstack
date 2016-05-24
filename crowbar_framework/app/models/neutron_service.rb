@@ -33,11 +33,11 @@ class NeutronService < PacemakerServiceObject
   end
 
   def self.networking_ml2_type_drivers_valid
-    ["vlan", "gre", "vxlan"]
+    ["vlan", "gre", "vxlan", "opflex"]
   end
 
   def self.networking_ml2_mechanism_drivers_valid
-    ["linuxbridge", "openvswitch", "cisco_nexus"]
+    ["linuxbridge", "openvswitch", "cisco_nexus", "cisco_apic_ml2"]
   end
 
   class << self
@@ -195,7 +195,7 @@ class NeutronService < PacemakerServiceObject
     ml2_type_drivers.each do |drv|
       unless ml2_type_drivers_valid.include? drv
         validation_error I18n.t(
-          "barclamp.#{@bc_name}.validation.no_vaild_ml2_type_driver",
+          "barclamp.#{@bc_name}.validation.no_valid_ml2_type_driver",
           drv: drv,
           ml2_type_drivers_valid: ml2_type_drivers_valid.join(",")
         )
@@ -206,7 +206,7 @@ class NeutronService < PacemakerServiceObject
     ml2_mechanism_drivers.each do |drv|
       unless ml2_mechanism_drivers_valid.include? drv
         validation_error I18n.t(
-          "barclamp.#{@bc_name}.validation.no_vaild_ml2_type_driver",
+          "barclamp.#{@bc_name}.validation.no_valid_ml2_mechanism",
           drv: drv,
           ml2_mechanism_drivers_valid: ml2_mechanism_drivers_valid.join(",")
         )
@@ -250,6 +250,16 @@ class NeutronService < PacemakerServiceObject
     # cisco_nexus mech driver needs also openvswitch mech driver
     if ml2_mechanism_drivers.include? "cisco_nexus" and not ml2_mechanism_drivers.include? "openvswitch"
       validation_error I18n.t("barclamp.#{@bc_name}.validation.cisco_nexus")
+    end
+
+    # cisco_apic_ml2 mech driver needs also openvswitch mech driver
+    if ml2_mechanism_drivers.include?("cisco_apic_ml2") && ml2_mechanism_drivers.include?("openvswitch")
+      validation_error I18n.t("barclamp.#{@bc_name}.validation.cisco_apic_ml2")
+    end
+
+    # cisco_apic_ml2 mech driver needs opflex as the type_driver
+    if ml2_mechanism_drivers.include? "cisco_apic_ml2" && ml2_type_drivers != ["opflex"]
+      validation_error I18n.t("barclamp.#{@bc_name}.validation.cisco_apic_ml2")
     end
 
     # for now, openvswitch and linuxbrige can't be used in parallel
