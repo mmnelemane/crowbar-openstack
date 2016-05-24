@@ -110,10 +110,17 @@ template "/etc/sysconfig/neutron" do
   mode 0640
   # whenever changing plugin_config_file here, keep in mind to change the call
   # to neutron-db-manage too
-  if node[:neutron][:networking_plugin] == "ml2" and node[:neutron][:ml2_mechanism_drivers].include?("cisco_nexus")
-    variables(
-      plugin_config_file: plugin_cfg_path +  " /etc/neutron/plugins/ml2/ml2_conf_cisco.ini"
-    )
+  if node[:neutron][:networking_plugin] == "ml2" 
+    if node[:neutron][:ml2_mechanism_drivers].include?("cisco_nexus")
+      variables(
+        plugin_config_file: plugin_cfg_path +  " /etc/neutron/plugins/ml2/ml2_conf_cisco.ini"
+      )
+    end
+    if node[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2")
+      variables(
+        plugin_config_file: plugin_cfg_path + " /etc/neutron/plugins/ml2/ml2_conf_cisco_apic.ini"
+      )
+    end
   else
     variables(
       plugin_config_file: plugin_cfg_path
@@ -175,7 +182,7 @@ when "ml2"
   network_node = NeutronHelper.get_network_node_from_neutron_attributes(node)
   physnet_map = NeutronHelper.get_neutron_physnets(network_node, external_networks)
   physnets = physnet_map.values
-
+  
   if use_zvm
     physnets.push(node[:neutron][:zvm][:zvm_xcat_mgt_vswitch])
   end
@@ -193,7 +200,7 @@ when "ml2"
     ml2_mechanism_drivers.push("l2population") if node[:neutron][:use_dvr]
     mtu_value = 1400
   end
-
+ 
   ml2_mech_drivers = node[:neutron][:ml2_mechanism_drivers]
   if ml2_mech_drivers.include?("linuxbridge")
     interface_driver = "neutron.agent.linux.interface.BridgeInterfaceDriver"
@@ -206,7 +213,7 @@ when "ml2"
     mode "0640"
     variables(
       ml2_mechanism_drivers: ml2_mechanism_drivers,
-      ml2_type_drivers: node[:neutron][:ml2_type_drivers],
+      ml2_type_drivers: ml2_type_drivers,
       tenant_network_types: tenant_network_types,
       vlan_start: vlan_start,
       vlan_end: vlan_end,
@@ -241,8 +248,13 @@ when "vmware"
   end
 end
 
-if node[:neutron][:networking_plugin] == "ml2" and node[:neutron][:ml2_mechanism_drivers].include?("cisco_nexus")
-  include_recipe "neutron::cisco_support"
+if node[:neutron][:networking_plugin] == "ml2"
+  if node[:neutron][:ml2_mechanism_drivers].include?("cisco_nexus")
+    include_recipe "neutron::cisco_support"
+  end
+  if node[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2")
+    include_recipe "neutron::cisco_apic_support"
+  end
 end
 
 if node[:neutron][:use_lbaas]

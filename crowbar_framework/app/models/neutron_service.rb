@@ -33,11 +33,11 @@ class NeutronService < PacemakerServiceObject
   end
 
   def self.networking_ml2_type_drivers_valid
-    ["vlan", "gre", "vxlan"]
+    ["vlan", "gre", "vxlan", "opflex"]
   end
 
   def self.networking_ml2_mechanism_drivers_valid
-    ["linuxbridge", "openvswitch", "cisco_nexus"]
+    ["linuxbridge", "openvswitch", "cisco_nexus", "cisco_apic_ml2"]
   end
 
   class << self
@@ -251,6 +251,16 @@ class NeutronService < PacemakerServiceObject
     if ml2_mechanism_drivers.include? "cisco_nexus" and not ml2_mechanism_drivers.include? "openvswitch"
       validation_error I18n.t("barclamp.#{@bc_name}.validation.cisco_nexus")
     end
+
+    # cisco_apic_ml2 mech driver needs also openvswitch mech driver
+    if ml2_mechanism_drivers.include? "cisco_apic_ml2" and ml2_mechanism_drivers.include? "openvswitch"
+      validation_error I18n.t("barclamp.#{@bc_name}.validation.cisco_apic_ml2")
+    end 
+
+    # cisco_apic_ml2 mech driver needs opflex as the type_driver
+    if ml2_mechanism_drivers.include? "cisco_apic_ml2" and not ml2_type_drivers.include? "opflex"
+      validation_error I18n.t("barclamp.#{@bc_name}.validation.cisco_apic_ml2")
+    end 
 
     # for now, openvswitch and linuxbrige can't be used in parallel
     if ml2_mechanism_drivers.include? "openvswitch" and ml2_mechanism_drivers.include? "linuxbridge"
