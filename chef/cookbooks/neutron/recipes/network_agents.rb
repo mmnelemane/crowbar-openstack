@@ -205,6 +205,40 @@ if !node[:neutron][:network_mtu_fix] &&
   end
 end
 
+#Opflex agent configuration
+if node[:neutron][:ml2_mechanism_drivers].include?("cisco_ml2_apic")
+  # Create directory if does not exist
+  directory create "/etc/opflex-agent-ovs/conf.d for enable-ovs_opflex_agent" do
+    path "/etc/opflex-agent-ovs/conf.d"
+    mode "755"
+  end
+
+  # Create conf file if it does not exist
+  file "10-opflex-agent-ovs.conf" do
+    path "/etc/opflex-agent-ovs/conf.d/"
+    action :create_if_missing
+    mode "755"
+  end
+
+  # Update config file from template
+  template "/etc/opflex-agent-ovs/conf.d/10-opflex-agent-ovs.conf" do
+    cookbook "neutron"
+    source "10-opflex-agent-ovs.conf.erb"
+    mode "0755"
+    owner "root"
+    group neutron[:neutron][:platform][:group]
+    variables ({
+      opflex_apic_domain_name: node[:neutron][:apic][:system_id],
+      hostname: node[:hostname],
+      opflex_peer_ip: "10.0.0.30",
+      opflex_peer_port: "8009",
+      opflex_remote_ip: "10.0.0.32",
+      opflex_remote_port: "8472",
+      ml2_type_drivers: node[:neutron][:ml2_type_drivers]
+    })
+  end    
+end
+
 if ha_enabled
   log "HA support for neutron agents is enabled"
   include_recipe "neutron::network_agents_ha"
