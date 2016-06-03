@@ -114,6 +114,7 @@ neutron_network_ha = node.roles.include?("neutron-network") && neutron[:neutron]
 # ML2 configuration: L2 agent and L3 agent
 if neutron[:neutron][:networking_plugin] == "ml2"
   ml2_mech_drivers = neutron[:neutron][:ml2_mechanism_drivers]
+  Chef::Log.info("ml2_mechanism_drivers #{ml2_mech_drivers}")
   if node.roles.include?("nova-compute-zvm")
     ml2_mech_drivers.push("zvm")
   end
@@ -164,6 +165,12 @@ if neutron[:neutron][:networking_plugin] == "ml2"
         interface_mappings += mapping
       end
     end
+  when ml2_mech_drivers.include?("cisco_apic_ml2")
+    if node.roles.include?("nova-compute-kvm")
+      node[:neutron][:platform][:cisco_opflex_pkgs].each { |p| package p }
+    end
+    agent_config_path = "/etc/neutron/plugins/ml2/openvswitch_agent.ini"
+    interface_driver = "neutron.agent.linux.interface.OVSInterfaceDriver"
   end
 
   # include neutron::common_config only now, after we've installed packages
@@ -235,59 +242,129 @@ if neutron[:neutron][:networking_plugin] == "ml2"
         interface_mappings: interface_mappings
        )
     end
+  when ml2_mech_drivers.include?("cisco_apic_ml2")
+    # apply configurations to compute node
+    if node.roles.include?("nova-compute-kvm")
+      node[:neutron][:platform][:cisco_opflex_pkgs].each { |p| package p }
+      %w( /var/run/neutron /var/lib/opflex-agent-ovs/endpoints
+          /var/lib/opflex-agent-ovs/ids /var/lib/opflex-agent-ovs/mcast 
+          /var/lib/opflex-agent-ovs/services /etc/opflex-agent-ovs/conf.d).each do |path|
+        directory path do
+          mode "0775"
+          owner "root"
+          group neutron[:neutron][:platform][:group]
+          action :create
+          recursive true
+        end
+      end
+      template agent_config_path do
+        cookbook "neutron"
+        source "openvswitch_agent.ini.erb"
+        owner "root"
+        group node[:neutron][:platform][:group]
+        mode "0640"
+        variables(
+          ml2_type_drivers: ml2_type_drivers,
+          tunnel_types: "",
+          use_l2pop: false,
+          dvr_enabled: false,
+          bridge_mappings: ""
+        )
+      end
+    
+      # Update config file from template
+      opflex_agent_conf = "/etc/opflex-agent-ovs/conf.d/10-opflex-agent-ovs.conf"
+      template opflex_agent_conf do
+        cookbook "neutron"
+        source "10-opflex-agent-ovs.conf.erb"
+        mode "0755"
+        owner "root"
+        group neutron[:neutron][:platform][:group]
+        variables ({
+          opflex_apic_domain_name: neutron[:neutron][:apic][:system_id],
+          hostname: node[:hostname],
+          socketgroup: neutron[:neutron][:platform][:group],
+          opflex_peer_ip: "10.0.0.30",
+          opflex_peer_port: "8009",
+          opflex_remote_ip: "10.0.0.32",
+          opflex_remote_port: "8472",
+          ml2_type_drivers: neutron[:neutron][:ml2_type_drivers]
+        })
+      end   
+      service "neutron-opflex-agent" do
+        action [:enable, :start]
+        subscribes :restart, resources("template[#{opflex_agent_conf}]")
+      end
+      service "agent-ovs" do
+        action [:enable, :start]
+      end
+    end
   end
 
-  service neutron_agent do
-    action [:enable, :start]
-    subscribes :restart, resources("template[#{agent_config_path}]")
-    subscribes :restart, resources("template[/etc/neutron/neutron.conf]")
-    if neutron_network_ha || nova_compute_ha_enabled
-      provider Chef::Provider::CrowbarPacemakerService
+  if !neutron[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2")
+    node[:network][:ovs_pkgs].each { |p| package p }
+    
+    bash "Load openvswitch module" do
+      code "modeprobe #{node[:network][:ovs_module]}"
+      not_if { ::File.directory?("/sys/module/#{node[:network][:ovs_module]}") }
     end
-    if nova_compute_ha_enabled
-      supports no_crm_maintenance_mode: true
-    else
+    
+    service node[:network][:ovs_service] do
       supports status: true, restart: true
-    end
-  end
-
-  # L3 agent
-  if neutron[:neutron][:use_dvr] || node.roles.include?("neutron-network") && \
-    !neutron[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2")
-    pkgs = [node[:neutron][:platform][:l3_agent_pkg]] + \
-           node[:neutron][:platform][:pkgs_fwaas]
-    pkgs.each { |p| package p }
-
-    template "/etc/neutron/l3_agent.ini" do
-      source "l3_agent.ini.erb"
-      owner "root"
-      group node[:neutron][:platform][:group]
-      mode "0640"
-      variables(
-        debug: neutron[:neutron][:debug],
-        interface_driver: interface_driver,
-        use_namespaces: "True",
-        handle_internal_only_routers: "True",
-        metadata_port: 9697,
-        send_arp_for_ha: 3,
-        periodic_interval: 40,
-        periodic_fuzzy_delay: 5,
-        dvr_enabled: neutron[:neutron][:use_dvr],
-        dvr_mode: node.roles.include?("neutron-network") ? "dvr_snat" : "dvr"
-      )
+      action [:start, :enable]
     end
 
-    service node[:neutron][:platform][:l3_agent_name] do
+    service neutron_agent do
       action [:enable, :start]
+      subscribes :restart, resources("template[#{agent_config_path}]")
       subscribes :restart, resources("template[/etc/neutron/neutron.conf]")
-      subscribes :restart, resources("template[/etc/neutron/l3_agent.ini]")
       if neutron_network_ha || nova_compute_ha_enabled
         provider Chef::Provider::CrowbarPacemakerService
       end
       if nova_compute_ha_enabled
         supports no_crm_maintenance_mode: true
       else
-        supports status: true, restart: true, disable: true, stop: true
+        supports status: true, restart: true
+      end
+    end
+  
+    # L3 agent
+    if neutron[:neutron][:use_dvr] || node.roles.include?("neutron-network")
+      pkgs = [node[:neutron][:platform][:l3_agent_pkg]] + \
+             node[:neutron][:platform][:pkgs_fwaas]
+      pkgs.each { |p| package p }
+  
+      template "/etc/neutron/l3_agent.ini" do
+        source "l3_agent.ini.erb"
+        owner "root"
+        group node[:neutron][:platform][:group]
+        mode "0640"
+        variables(
+          debug: neutron[:neutron][:debug],
+          interface_driver: interface_driver,
+          use_namespaces: "True",
+          handle_internal_only_routers: "True",
+          metadata_port: 9697,
+          send_arp_for_ha: 3,
+          periodic_interval: 40,
+          periodic_fuzzy_delay: 5,
+          dvr_enabled: neutron[:neutron][:use_dvr],
+          dvr_mode: node.roles.include?("neutron-network") ? "dvr_snat" : "dvr"
+        )
+      end
+  
+      service node[:neutron][:platform][:l3_agent_name] do
+        action [:enable, :start]
+        subscribes :restart, resources("template[/etc/neutron/neutron.conf]")
+        subscribes :restart, resources("template[/etc/neutron/l3_agent.ini]")
+        if neutron_network_ha || nova_compute_ha_enabled
+          provider Chef::Provider::CrowbarPacemakerService
+        end
+        if nova_compute_ha_enabled
+          supports no_crm_maintenance_mode: true
+        else
+          supports status: true, restart: true, disable: true, stop: true
+        end
       end
     end
   end

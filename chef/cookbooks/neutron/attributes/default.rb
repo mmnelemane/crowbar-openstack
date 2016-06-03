@@ -86,9 +86,10 @@ when "suse"
     nsx_pkgs: ["openvswitch-pki",
                    "ruby2.1-rubygem-faraday"],
     cisco_pkgs: ["python-networking-cisco"],
-    cisco_apic_pkgs: ["openstack-neutron-opflex-agent",
-                      "python-apicapi",
+    cisco_apic_pkgs: ["python-apicapi",
                       "python-neutron-ml2-driver-apic"],
+    cisco_opflex_pkgs: ["openstack-neutron-opflex-agent",
+                        "agent-ovs"],
     user: "neutron",
     group: "neutron",
     neutron_rootwrap_sudo_template: "/etc/sudoers.d/openstack-neutron"

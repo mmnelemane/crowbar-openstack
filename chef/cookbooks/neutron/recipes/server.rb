@@ -148,7 +148,7 @@ when "ml2"
   if ml2_type_drivers.include?("gre") || ml2_type_drivers.include?("vxlan")
     ml2_mechanism_drivers.push("l2population") if node[:neutron][:use_dvr]
   end
- 
+
   ml2_mech_drivers = node[:neutron][:ml2_mechanism_drivers]
   if ml2_mech_drivers.include?("linuxbridge")
     interface_driver = "neutron.agent.linux.interface.BridgeInterfaceDriver"
