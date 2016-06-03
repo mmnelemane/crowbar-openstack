@@ -1,7 +1,7 @@
 node[:neutron][:platform][:cisco_apic_pkgs].each { |p| package p }
 
 if node[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2")
-  # Stop and disable L3 and Metadata Agents if APIC is enabled
+  # Explicitly Stop and disable L3 and Metadata Agents if APIC is enabled
   service node[:neutron][:platform][:metadata_agent_name] do
     action [:disable, :stop]
   end
@@ -9,6 +9,7 @@ if node[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2")
     action [:disable, :stop]
   end
 
+  # apply configurations to compute node
   aciswitches = node[:neutron][:apic_switches].to_hash
   template "/etc/neutron/plugins/ml2/ml2_conf_cisco_apic.ini" do
     cookbook "neutron"
