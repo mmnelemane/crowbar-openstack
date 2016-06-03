@@ -200,7 +200,7 @@ when "ml2"
     ml2_mechanism_drivers.push("l2population") if node[:neutron][:use_dvr]
     mtu_value = 1400
   end
- 
+
   ml2_mech_drivers = node[:neutron][:ml2_mechanism_drivers]
   if ml2_mech_drivers.include?("linuxbridge")
     interface_driver = "neutron.agent.linux.interface.BridgeInterfaceDriver"
