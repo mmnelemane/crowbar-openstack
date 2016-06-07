@@ -86,6 +86,19 @@ link "/etc/neutron/neutron-server.conf.d/100-ml2_conf_cisco_apic.ini.conf" do
   notifies :restart, "service[#{node[:neutron][:platform][:service_name]}]"
 end
 
+# enable/disable ml2_conf_odl for neutron-server
+if node[:neutron][:networking_plugin] == "ml2" &&
+  node[:neutron][:ml2_mechanism_drivers].include?("opendaylight")
+  odl_link_action = "create"
+else
+  odl_link_action = "delete"
+end
+link "/etc/neutron/neutron-server.conf.d/100-ml2_conf_odl.ini.conf" do
+  to "/etc/neutron/plugins/ml2/ml2_conf_odl.ini"
+  action odl_link_action
+  notifies :restart, "service[#{node[:neutron][:platform][:service_name]}]"
+end
+
 template "/etc/default/neutron-server" do
   source "neutron-server.erb"
   owner "root"
@@ -218,6 +231,8 @@ if node[:neutron][:networking_plugin] == "ml2"
   elsif node[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2") ||
       node[:neutron][:ml2_mechanism_drivers].include?("apic_gbp")
     include_recipe "neutron::cisco_apic_support"
+  elsif node[:neutron][:ml2_mechanism_drivers].include?("opendaylight")
+    include_recipe "neutron::odl_support"
   end
 end
 
