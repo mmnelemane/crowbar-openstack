@@ -82,6 +82,8 @@ if neutron[:neutron][:networking_plugin] == "ml2"
     service_plugins = ["cisco_apic_l3"]
   elsif neutron[:neutron][:ml2_mechanism_drivers].include?("apic_gbp")
     service_plugins = ["group_policy", "servicechain", "apic_gbp_l3"]
+  elsif neutron[:neutron][:ml2_mechanism_drivers].include?("opendaylight")
+    service_plugins = ["odl-router"]
   end
 end
 service_plugins = service_plugins.join(", ")

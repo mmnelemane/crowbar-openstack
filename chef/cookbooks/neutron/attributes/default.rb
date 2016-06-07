@@ -75,6 +75,12 @@ default[:neutron][:apic][:opflex][:vxlan][:remote_ip] = ""
 default[:neutron][:apic][:opflex][:vxlan][:remote_port] = 8472
 default[:neutron][:apic][:opflex][:vlan][:encap_iface] = ""
 
+default[:neutron][:odl][:protocol] = "http"
+default[:neutron][:odl][:controller_port] = 6653
+default[:neutron][:odl][:manager_port] = 6640
+default[:neutron][:odl][:username] = "admin"
+default[:neutron][:odl][:password] = "admin"
+
 case node[:platform_family]
 when "suse"
   default[:neutron][:platform] = {
@@ -119,6 +125,7 @@ when "suse"
                     "openstack-neutron-infoblox-ipam-agent"],
     vmware_vsphere_pkg: "openstack-neutron-vsphere",
     vmware_vsphere_dvs_agent_pkg: "openstack-neutron-vsphere-dvs-agent",
+    odl_pkgs: ["python-networking-odl"],
     user: "neutron",
     group: "neutron",
   }
@@ -162,6 +169,7 @@ when "rhel"
     infoblox_pkgs: [],
     vmware_vsphere_pkg: "",
     vmware_vsphere_dvs_agent_pkg: "",
+    odl_pkgs: ["python-networking-odl"],
     user: "neutron",
     group: "neutron",
   }
@@ -204,6 +212,7 @@ else
     infoblox_pkgs: [],
     vmware_vsphere_pkg: "openstack-neutron-vsphere",
     vmware_vsphere_dvs_agent_pkg: "openstack-neutron-vsphere-dvs-agent",
+    odl_pkgs: [""],
     user: "neutron",
     group: "neutron",
   }
