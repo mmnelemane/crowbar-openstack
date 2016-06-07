@@ -68,6 +68,10 @@ default[:neutron][:opflex][:vxlan][:remote_ip] = "10.0.0.32"
 default[:neutron][:opflex][:vxlan][:remote_port] = 8472
 default[:neutron][:opflex][:vlan][:encap_iface] = ""
 
+default[:neutron][:odl][:protocol] = "http"
+default[:neutron][:odl][:controller_port] = 6653
+default[:neutron][:odl][:manager_port] = 6640
+
 case node[:platform_family]
 when "suse"
   default[:neutron][:platform] = {
@@ -108,6 +112,7 @@ when "suse"
     cisco_opflex_pkgs: ["agent-ovs",
                         "lldpd",
                         "openstack-neutron-opflex-agent"],
+    odl_pkgs: ["python-networking-odl"],
     user: "neutron",
     group: "neutron",
   }
@@ -149,6 +154,7 @@ when "rhel"
     cisco_opflex_pkgs: ["agent-ovs",
                         "lldpd",
                         "neutron-opflex-agent"],
+    odl_pkgs: ["python-networking-odl"],
     user: "neutron",
     group: "neutron",
   }
@@ -187,6 +193,7 @@ else
     cisco_apic_pkgs: [""],
     cisco_apic_gbp_pkgs: [""],
     cisco_opflex_pkgs: [""],
+    odl_pkgs: [""],
     user: "neutron",
     group: "neutron",
   }
