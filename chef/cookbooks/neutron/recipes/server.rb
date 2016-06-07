@@ -60,10 +60,17 @@ template "/etc/sysconfig/neutron" do
   mode 0640
   # whenever changing plugin_config_file here, keep in mind to change the call
   # to neutron-db-manage too
-  if node[:neutron][:networking_plugin] == "ml2" and node[:neutron][:ml2_mechanism_drivers].include?("cisco_nexus")
-    variables(
-      plugin_config_file: plugin_cfg_path +  " /etc/neutron/plugins/ml2/ml2_conf_cisco.ini"
-    )
+  if node[:neutron][:networking_plugin] == "ml2" 
+    if node[:neutron][:ml2_mechanism_drivers].include?("cisco_nexus")
+      variables(
+        plugin_config_file: plugin_cfg_path +  " /etc/neutron/plugins/ml2/ml2_conf_cisco.ini"
+      )
+    end
+    if node[:neutron][:ml2_mechanism_drivers].include?("opendaylight")
+      variables(
+        plugin_config_file: plugin_cfg_path + " /etc/neutron/plugins/ml2/ml2_conf_odl.ini"
+      )
+    end
   else
     variables(
       plugin_config_file: plugin_cfg_path
@@ -188,8 +195,13 @@ when "vmware"
   end
 end
 
-if node[:neutron][:networking_plugin] == "ml2" and node[:neutron][:ml2_mechanism_drivers].include?("cisco_nexus")
-  include_recipe "neutron::cisco_support"
+if node[:neutron][:networking_plugin] == "ml2" 
+  if node[:neutron][:ml2_mechanism_drivers].include?("cisco_nexus")
+    include_recipe "neutron::cisco_support"
+  end
+  if node[:neutron][:ml2_mechanism_drivers].include?("opendaylight")
+    include_recipe "neutron::odl_support"
+  end
 end
 
 if node[:neutron][:use_lbaas]

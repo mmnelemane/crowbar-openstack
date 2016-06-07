@@ -81,6 +81,7 @@ when "suse"
     nsx_pkgs: ["openvswitch-pki",
                    "ruby2.1-rubygem-faraday"],
     cisco_pkgs: ["python-networking-cisco"],
+    odl_pkgs: ["python-networking-odl"],
     user: "neutron",
     group: "neutron",
     neutron_rootwrap_sudo_template: "/etc/sudoers.d/openstack-neutron"
