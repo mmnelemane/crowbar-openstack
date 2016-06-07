@@ -74,6 +74,12 @@ default[:neutron][:opflex][:vxlan][:remote_ip] = "10.0.0.32"
 default[:neutron][:opflex][:vxlan][:remote_port] = 8472
 default[:neutron][:opflex][:vlan][:encap_iface] = ""
 
+default[:neutron][:odl][:protocol] = "http"
+default[:neutron][:odl][:controller_port] = 6653
+default[:neutron][:odl][:manager_port] = 6640
+default[:neutron][:odl][:username] = "admin"
+default[:neutron][:odl][:password] = "admin"
+
 case node[:platform_family]
 when "suse"
   default[:neutron][:platform] = {
@@ -116,6 +122,7 @@ when "suse"
     infoblox_pkgs: ["python-infoblox-client",
                     "openstack-neutron-infoblox",
                     "openstack-neutron-infoblox-ipam-agent"],
+    odl_pkgs: ["python-networking-odl"],
     user: "neutron",
     group: "neutron",
   }
@@ -157,6 +164,7 @@ when "rhel"
                         "lldpd",
                         "neutron-opflex-agent"],
     infoblox_pkgs: [],
+    odl_pkgs: ["python-networking-odl"],
     user: "neutron",
     group: "neutron",
   }
@@ -197,6 +205,7 @@ else
     cisco_apic_gbp_pkgs: [""],
     cisco_opflex_pkgs: [""],
     infoblox_pkgs: [],
+    odl_pkgs: [""],
     user: "neutron",
     group: "neutron",
   }

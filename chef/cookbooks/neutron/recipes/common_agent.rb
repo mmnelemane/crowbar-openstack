@@ -56,6 +56,9 @@ if neutron[:neutron][:networking_plugin] == "ml2" &&
     neutron[:neutron][:ml2_mechanism_drivers].include?("apic_gbp"))
   include_recipe "neutron::cisco_apic_agents"
   return # skip anything else in this recipe
+elsif neutron[:neutron][:ml2_mechanism_drivers].include?("opendaylight")
+  include_recipe "neutron::odl_support"
+  return
 end
 
 multiple_external_networks = !neutron[:neutron][:additional_external_networks].empty?
@@ -72,7 +75,7 @@ if neutron[:neutron][:networking_plugin] == "ml2" &&
     unless neutron.name == node.name
       cookbook_file "/etc/init.d/neutron-ovs-cleanup" do
         source "neutron-ovs-cleanup"
-        mode 00755
+        mode "0755"
       end
       link "/etc/rc2.d/S20neutron-ovs-cleanup" do
         to "../init.d/neutron-ovs-cleanup"
@@ -126,8 +129,8 @@ if neutron[:neutron][:networking_plugin] == "ml2"
   end
   ml2_type_drivers = neutron[:neutron][:ml2_type_drivers]
 
-  case
-  when ml2_mech_drivers.include?("zvm")
+  case ml2_mech_drivers
+  when ->(ml2_mech) { ml2_mech.include?("zvm") }
     package node[:neutron][:platform][:zvm_agent_pkg]
 
     neutron_agent = node[:neutron][:platform][:zvm_agent_name]
@@ -135,7 +138,7 @@ if neutron[:neutron][:networking_plugin] == "ml2"
     physnet = node[:crowbar_wall][:network][:nets][:nova_fixed].first
     interface_mappings = "physnet1:" + physnet
 
-  when ml2_mech_drivers.include?("openvswitch")
+  when ->(ml2_mech) { ml2_mech.include?("openvswitch") }
     # package is already installed
     neutron_agent = node[:neutron][:platform][:ovs_agent_name]
     agent_config_path = "/etc/neutron/plugins/ml2/openvswitch_agent.ini"
@@ -152,7 +155,7 @@ if neutron[:neutron][:networking_plugin] == "ml2"
       bridge_mappings += ", " unless bridge_mappings.empty?
       bridge_mappings += "physnet1:br-fixed"
     end
-  when ml2_mech_drivers.include?("linuxbridge")
+  when ->(ml2_mech) { ml2_mech.include?("linuxbridge") }
     package node[:neutron][:platform][:lb_agent_pkg]
 
     neutron_agent = node[:neutron][:platform][:lb_agent_name]
@@ -183,12 +186,9 @@ if neutron[:neutron][:networking_plugin] == "ml2"
   include_recipe "neutron::common_config"
 
   # L2 agent
-  case
-  when ml2_mech_drivers.include?("zvm")
-    # accessing the network definition directly, since the node is not using
-    # this network
-    fixed_net_def = Barclamp::Inventory.get_network_definition(neutron, "nova_fixed")
-    vlan_start = fixed_net_def["vlan"]
+  case ml2_mech_drivers
+  when ->(ml2_mech) { ml2_mech.include?("zvm") }
+    vlan_start = neutron[:network][:networks][:nova_fixed][:vlan]
     num_vlans = neutron[:neutron][:num_vlans]
     vlan_end = [vlan_start + num_vlans - 1, 4094].min
 
@@ -204,9 +204,9 @@ if neutron[:neutron][:networking_plugin] == "ml2"
         vlan_end: vlan_end,
       )
     end
-  when ml2_mech_drivers.include?("openvswitch")
+  when ->(ml2_mech) { ml2_mech.include?("openvswitch") }
     directory "/etc/neutron/plugins/openvswitch/" do
-      mode 00755
+      mode "0755"
       owner "root"
       group node[:neutron][:platform][:group]
       action :create
@@ -223,8 +223,7 @@ if neutron[:neutron][:networking_plugin] == "ml2"
       variables(
         ml2_type_drivers: ml2_type_drivers,
         tunnel_types: ml2_type_drivers.select { |t| ["vxlan", "gre"].include?(t) },
-        use_l2pop: neutron[:neutron][:use_l2pop] &&
-            (ml2_type_drivers.include?("gre") || ml2_type_drivers.include?("vxlan")),
+        use_l2pop: ml2_type_drivers.include?("gre" || "vxlan") && neutron[:neutron][:use_dvr],
         dvr_enabled: neutron[:neutron][:use_dvr],
         tunnel_csum: neutron[:neutron][:ovs][:tunnel_csum],
         of_interface: neutron[:neutron][:ovs][:of_interface],
@@ -232,9 +231,9 @@ if neutron[:neutron][:networking_plugin] == "ml2"
         bridge_mappings: bridge_mappings
       )
     end
-  when ml2_mech_drivers.include?("linuxbridge")
+  when ->(ml2_mech) { ml2_mech.include?("linuxbridge") }
     directory "/etc/neutron/plugins/linuxbridge/" do
-      mode 00755
+      mode "0755"
       owner "root"
       group node[:neutron][:platform][:group]
       action :create
@@ -251,9 +250,9 @@ if neutron[:neutron][:networking_plugin] == "ml2"
       variables(
         ml2_type_drivers: ml2_type_drivers,
         vxlan_mcast_group: neutron[:neutron][:vxlan][:multicast_group],
-        use_l2pop: neutron[:neutron][:use_l2pop] && ml2_type_drivers.include?("vxlan"),
+        use_l2pop: ml2_type_drivers.include?("vxlan") && neutron[:neutron][:use_dvr],
         interface_mappings: interface_mappings
-       )
+      )
     end
   end
 
@@ -329,8 +328,6 @@ if neutron[:neutron][:use_dvr] || node.roles.include?("neutron-network")
   metadata_protocol = (nova[:nova][:ssl][:enabled] ? "https" : "http") rescue "http"
   metadata_insecure = (nova[:nova][:ssl][:enabled] && nova[:nova][:ssl][:insecure]) rescue false
   metadata_proxy_shared_secret = (nova[:nova][:neutron_metadata_proxy_shared_secret] rescue "")
-
-  keystone_settings = KeystoneHelper.keystone_settings(neutron, @cookbook_name)
 
   template "/etc/neutron/metadata_agent.ini" do
     source "metadata_agent.ini.erb"
