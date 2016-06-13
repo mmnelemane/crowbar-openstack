@@ -127,6 +127,37 @@
                 %td
                   = link_to t(".clear_port"), "#", :class => "btn btn-default btn-block", "data-clear" => node.handle
 
+    #odl_controller
+      %fieldset
+        %legend
+          = t(".odl_controller")
+
+        %table.table.table-middle{ "data-dynamic" => "#odl-entries", "data-namespace" => "odl_controller", "data-optional" => "", "data-invalid" => t(".error_invalid"), "data-duplicate" => t(".error_duplicate") }
+          %thead
+            %tr
+              %th.col-sm-3
+                = t(".odl_ip")
+              %th.col-sm-2
+                = t(".odl_port")
+              %th.col-sm-3
+                = t(".odl_username")
+              %th.col-sm-3
+                = t(".odl_password")
+              %th.col-sm-1
+          %tbody
+          %tfoot
+            %tr
+              %th
+                = text_field_tag "switch[controller]", "", :placeholder => t(".odl_ip"), :class => "form-control", "data-name" => "controller", "data-type" => "string"
+              %th
+                = number_field_tag "switch[port]", "", :placeholder => t(".odl_port"), :class => "form-control", "data-name" => "port", "data-type" => "string"
+              %th
+                = text_field_tag "switch[user]", "", :placeholder => t(".odl_username"), :class => "form-control", "data-name" => "user", "data-type" => "string"
+              %th
+                = password_field_tag "switch[password]", "", :placeholder => t(".odl_password"), :class => "form-control", "data-name" => "password", "data-type" => "string"
+              %th
+                = link_to t(".add_switch"), "#", :class => "btn btn-default btn-block", "data-add" => true
+
     %fieldset
       %legend
         = t(".zvm_header")
@@ -170,4 +201,24 @@
     %td{ :colspan => 5 }
       .empty.alert.alert-info.text-center
         = t(".no_switches")
+  {{/each}}
+
+%script#odl-entries{ :type => "text/x-handlebars-template" }
+  {{#each entries}}
+  %tr.edit
+    %td
+      = text_field_tag "switch[name]", "{{name}}", :placeholder => t(".odl_ip"), :class => "form-control", :disabled => "disabled"
+    %td
+      = number_field_tag "switch[port]", "{{port}}", :placeholder => t(".odl_port"), :class => "form-control", "data-update" => "exports/{{name}}/port", "data-type" => "string"
+    %td
+      = text_field_tag "switch[user]", "{{user}}", :placeholder => t(".odl_username"), :class => "form-control", "data-update" => "exports/{{name}}/user", "data-type" => "string"
+    %td
+      = password_field_tag "switch[password]", "{{password}}", :placeholder => t(".odl_password"), :class => "form-control", "data-update" => "exports/{{name}}/password", "data-type" => "string"
+    %td
+      = link_to t(".remove_switch"), "#", :class => "btn btn-default btn-block", "data-remove" => "{{name}}"
+  {{else}}
+  %tr
+    %td{ :colspan => 5 }
+      .empty.alert.alert-info.text-center
+        = t(".no_odl_controller")
   {{/each}}

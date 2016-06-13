@@ -308,6 +308,11 @@ function ml2_mechanism_drivers_check() {
   } else {
     $('#cisco_switches').hide();
   }
+  if values.indexOf("opendaylight") >= 0) {
+    $('#odl_controller').show();
+  } else {
+    $('#odl_controller').hide();
+  }
 
   // hide uneeded typedriver fields if only linuxbrige is selected
   // and autoselect the vlan type driver
