@@ -9,7 +9,6 @@ if node[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2")
     action [:disable, :stop]
   end
 
-  # apply configurations to compute node
   aciswitches = node[:neutron][:apic_switches].to_hash
   template "/etc/neutron/plugins/ml2/ml2_conf_cisco_apic.ini" do
     cookbook "neutron"

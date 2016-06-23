@@ -255,12 +255,12 @@ class NeutronService < PacemakerServiceObject
     # cisco_apic_ml2 mech driver needs also openvswitch mech driver
     if ml2_mechanism_drivers.include? "cisco_apic_ml2" and ml2_mechanism_drivers.include? "openvswitch"
       validation_error I18n.t("barclamp.#{@bc_name}.validation.cisco_apic_ml2")
-    end 
+    end
 
     # cisco_apic_ml2 mech driver needs opflex as the type_driver
     if ml2_mechanism_drivers.include? "cisco_apic_ml2" and not ml2_type_drivers == ["opflex"]
       validation_error I18n.t("barclamp.#{@bc_name}.validation.cisco_apic_ml2")
-    end 
+    end
 
     # for now, openvswitch and linuxbrige can't be used in parallel
     if ml2_mechanism_drivers.include? "openvswitch" and ml2_mechanism_drivers.include? "linuxbridge"
