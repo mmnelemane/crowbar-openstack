@@ -48,6 +48,10 @@ when "rhel", "suse"
       "python-heatclient"
     ],
     plugin_packages: [],
+    translator_pkgs: [
+      "python-tosca-parser",
+      "openstack-heat-translator"
+    ],
     services: [
       "openstack-heat-engine",
       "openstack-heat-api",
