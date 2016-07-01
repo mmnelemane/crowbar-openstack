@@ -40,6 +40,21 @@
                       "username": { "type" : "str", "required": true },
                       "password": { "type" : "str", "required": true }
                     }},
+                    "opflex": { "type": "map", "required": false, "mapping": {
+                      "peer_ip": { "type": "str", "required" : true },
+                      "peer_port": { "type": "int", "required" : true },
+                      "encap": { "type": "str", "required": true },
+                      "vxlan": { "type": "map", "required": true, "mapping" : {
+                          "encap_iface": {"type": "str", "required": true },
+                          "uplink_iface": { "type": "str", "required": true },
+                          "uplink_vlan": { "type": "str", "required": true },
+                          "remote_ip": { "type": "str", "required": true },
+                          "remote_port": { "type": "int", "required": true }
+                      }},
+                      "vlan": { "type": "map", "required": false, "mapping": {
+                          "encap_iface": { "type": "str", "required": true }
+                      }}
+                    }},
                     "allow_overlapping_ips": { "type": "bool", "required": true },
                     "cisco_switches": {
                       "type" : "map",

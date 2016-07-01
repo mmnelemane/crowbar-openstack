@@ -37,7 +37,7 @@ class NeutronService < PacemakerServiceObject
   end
 
   def self.networking_ml2_mechanism_drivers_valid
-    ["linuxbridge", "openvswitch", "cisco_nexus", "cisco_apic_ml2"]
+    ["linuxbridge", "openvswitch", "cisco_nexus", "cisco_apic_ml2", "apic_gbp"]
   end
 
   class << self
@@ -252,13 +252,14 @@ class NeutronService < PacemakerServiceObject
       validation_error I18n.t("barclamp.#{@bc_name}.validation.cisco_nexus")
     end
 
-    # cisco_apic_ml2 mech driver needs also openvswitch mech driver
-    if ml2_mechanism_drivers.include?("cisco_apic_ml2") && ml2_mechanism_drivers.include?("openvswitch")
+    # openvswitch is not needed when cisco_apic_ml2 mechanism driver is used
+    if ml2_mechanism_drivers.include?("cisco_apic_ml2") &&
+        ml2_mechanism_drivers.include?("openvswitch")
       validation_error I18n.t("barclamp.#{@bc_name}.validation.cisco_apic_ml2")
     end
 
     # cisco_apic_ml2 mech driver needs opflex as the type_driver
-    if ml2_mechanism_drivers.include? "cisco_apic_ml2" && ml2_type_drivers != ["opflex"]
+    if ml2_mechanism_drivers.include?("cisco_apic_ml2") && ml2_type_drivers != ["opflex"]
       validation_error I18n.t("barclamp.#{@bc_name}.validation.cisco_apic_ml2")
     end
 

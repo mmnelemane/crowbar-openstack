@@ -66,7 +66,8 @@ template "/etc/sysconfig/neutron" do
         plugin_config_file: plugin_cfg_path + " /etc/neutron/plugins/ml2/ml2_conf_cisco.ini"
       )
     end
-    if node[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2")
+    if node[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2") ||
+        node[:neutron][:ml2_mechanism_drivers].include?("apic_gbp")
       variables(
         plugin_config_file: plugin_cfg_path + " /etc/neutron/plugins/ml2/ml2_conf_cisco_apic.ini"
       )
@@ -200,7 +201,7 @@ if node[:neutron][:networking_plugin] == "ml2"
     include_recipe "neutron::cisco_support"
   end
   if node[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2") ||
-      if node[:neutron][:ml2_mechanism_drivers].include?("apic_gbp")
+      node[:neutron][:ml2_mechanism_drivers].include?("apic_gbp")
     include_recipe "neutron::cisco_apic_support"
   end
 end
@@ -319,6 +320,8 @@ end
 if node[:neutron][:networking_plugin] == "ml2"
   if node[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2")
     # See comments for "neutron-db-manage migrate" above
+    db_synced = node[:neutron][:db_synced_apic_ml2]
+    is_founder = CrowbarPacemakerHelper.is_cluster_founder?(node)
     execute "apic-ml2-db-manage upgrade head" do
       user node[:neutron][:user]
       group node[:neutron][:group]
@@ -326,8 +329,7 @@ if node[:neutron][:networking_plugin] == "ml2"
                                   --config-file /etc/neutron/plugins/ml2/ml2_conf.ini \
                                   --config-file /etc/neutron/plugins/ml2/ml2_conf_cisco_apic.ini \
                                   upgrade head"
-      only_if { !node[:neutron][:db_synced_apic_ml2] && \
-                (!ha_enabled || CrowbarPacemakerHelper.is_cluster_founder?(node)) }
+      only_if { !db_synced && (!ha_enabled || is_founder) }
     end
 
     ruby_block "mark node for apic-ml2-db-manage upgrade head" do
@@ -340,6 +342,8 @@ if node[:neutron][:networking_plugin] == "ml2"
     end
   elsif node[:neutron][:ml2_mechanism_drivers].include?("apic_gbp")
     # See comments for "neutron-db-manage migrate" above
+    db_synced = node[:neutron][:db_synced_apic_gbp]
+    is_founder = CrowbarPacemakerHelper.is_cluster_founder?(node)
     execute "gbp-db-manage upgrade head" do
       user node[:neutron][:user]
       group node[:neutron][:group]
@@ -347,8 +351,7 @@ if node[:neutron][:networking_plugin] == "ml2"
                              --config-file /etc/neutron/plugins/ml2/ml2_conf.ini \
                              --config-file /etc/neutron/plugins/ml2/ml2_conf_cisco_apic.ini \
                              upgrade head"
-      only_if { !node[:neutron][:db_synced_apic_gbp] && \
-                (!ha_enabled || CrowbarPacemakerHelper.is_cluster_founder?(node)) }
+      only_if { !db_synced && (!ha_enabled || is_founder) }
     end
 
     ruby_block "mark node for gbp-db-manage upgrade head" do

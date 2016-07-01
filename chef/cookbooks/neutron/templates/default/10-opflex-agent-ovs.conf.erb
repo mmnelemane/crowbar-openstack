@@ -40,11 +40,11 @@
              "ovs-bridge-name": "br-int",
              "encap": {
                  "vxlan" : {
-                     "encap-iface": "br-int_vxlan0",
-                     "uplink-iface": "vlan.4093",
-                     "uplink-vlan": 4093,
-                     "remote-ip": "<%= @opflex_remote_ip %>",
-                     "remote-port": <%= @opflex_remote_port %>
+                     "encap-iface": <%= @opflex_vxlan_encap_iface %>,
+                     "uplink-iface": <%= @opflex_vxlan_uplink_iface %>,
+                     "uplink-vlan": <%= @opflex_vxlan_uplink_vlan %>,
+                     "remote-ip": "<%= @opflex_vxlan_remote_ip %>",
+                     "remote-port": <%= @opflex_vxlan_remote_port %>
                  }
              },
              "forwarding": {
