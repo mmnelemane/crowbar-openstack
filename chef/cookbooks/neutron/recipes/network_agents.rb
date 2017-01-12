@@ -19,6 +19,10 @@ include_recipe "neutron::common_agent"
 package node[:neutron][:platform][:dhcp_agent_pkg]
 package node[:neutron][:platform][:metering_agent_pkg]
 
+if node[:neutron][:ml2_mechanism_drivers].include?("opendaylight")
+  include_recipe "neutron::odl_support"
+end
+
 if node[:neutron][:use_lbaas]
   if node[:neutron][:lbaasv2_driver] == "f5" &&
       !node[:neutron][:platform][:f5_agent_pkg].empty?

@@ -116,52 +116,6 @@ unless (node[:platform] == "suse" && node[:platform_version].to_f < 12.0)
   end
 end
 
-# Setup OVS bridges
-if neutron[:neutron][:ml2_mechanism_drivers].include?("opendaylight")
-  odl_controller_ip = neutron[:neutron][:odl][:controller_ip]
-  odl_controller_port = neutron[:neutron][:odl][:controller_port]
-  odl_manager_port = neutron[:neutron][:odl][:manager_port]
-  ovs_manager = "tcp:#{odl_controller_ip}:#{odl_manager_port}"
-  ovs_controller = "tcp:#{odl_controller_ip}:#{odl_controller_port}"
-
-  # Set OpenDaylight as the switch manager
-  execute "set_ovs_manager" do
-    command "ovs-vsctl set-manager '#{ovs_manager}'"
-    action :run
-  end
-
-  # Get UUID of the switch
-  switch_uuid = `ovs-vsctl get Open_vSwitch . _uuid`.chomp
-  node_ip = Chef::Recipe::Barclamp::Inventory.get_network_by_type(node, "admin").address
-  # (mmnelemane): Need a proper error check if the uuid is not returned. 
-  # Or use another more reliable method.
-  execute "set_ovs_local_ip" do
-    command "ovs-vsctl set Open_vSwitch #{switch_uuid} other_config:local_ip=#{node_ip}"
-    action :run
-  end
-
-  if node.roles.include?("nova-compute-kvm")
-    # Explicitly stop openvswitch agent service
-    service "openstack-neutron-openvswitch-agent" do
-      action [:stop, :disable]
-    end
-
-    ["br-int", "br-tunnel", "br-fixed", "br-public"].each do |bridge|
-      # Create the bridge if it does not already exist
-      # (mmnelemane): need exception handling for the below commands
-      execute "create_br_int" do
-        command "ovs-vsctl add-br #{bridge}"
-        action :run
-      end
-
-      execute "set_ovs_controller" do
-        command "ovs-vsctl set-controller #{bridge} '#{ovs_controller}'"
-        action :run
-      end
-    end
-  end
-end
-
 neutron_network_ha = node.roles.include?("neutron-network") && neutron[:neutron][:ha][:network][:enabled]
 
 # ML2 configuration: L2 agent and L3 agent

@@ -75,6 +75,8 @@ default[:neutron][:opflex][:vlan][:encap_iface] = ""
 default[:neutron][:odl][:protocol] = "http"
 default[:neutron][:odl][:controller_port] = 6653
 default[:neutron][:odl][:manager_port] = 6640
+default[:neutron][:odl][:username] = "admin"
+default[:neutron][:odl][:password] = "admin"
 
 case node[:platform_family]
 when "suse"
