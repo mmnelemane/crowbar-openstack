@@ -21,6 +21,7 @@ default[:neutron][:debug] = false
 default[:neutron][:verbose] = false
 default[:neutron][:max_header_line] = 16384
 default[:neutron][:dhcp_domain] = "openstack.local"
+default[:neutron][:create_default_networks] = true
 default[:neutron][:networking_plugin] = "ml2"
 default[:neutron][:additional_external_networks] = []
 default[:neutron][:config_file] = "/etc/neutron/neutron.conf.d/100-neutron.conf"
