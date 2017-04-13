@@ -67,6 +67,34 @@
             %span.help-block
               = t('.vxlan.multicast_group_hint')
 
+    #apic_host
+      %fieldset
+        %legend
+          = t(".apic_host")
+          = string_field t(".apic_host")
+          = string_field t(".apic_system_id")
+          = string_field t(".apic_username")
+          = string_field t(".apic_password")
+
+    #apic_switches
+      %fieldset
+        %legend
+          = t(".apic_switches")
+        %table.table.table-middle{ "data-dynamic" => "#switch-entries", "data-namespace" => "apic_switches", "data-optional" => "", "data-invalid" => t(".error_invalid"), "data-duplicate" => t(".error_duplicate") }
+          %thead
+            %tr
+              %th.col-sm-3
+                = t(".apic_switch_id")
+              %th.col-sm-2
+                = t(".apic_switch_ports")
+              %table.table.table-middle{ "data-dynamic" => "#switch-entries", "data-namespace" => "apic_switches", "data-optional" => "", "data-invalid" => t(".error_invalid"), "data-duplicate" => t(".error_duplicate") }
+                %thead
+                  %tr
+                    %th.col-sm-3
+                      = t(".apic_port_mac")
+                    %th.col-sm-2
+                      = t(".apic_port_number")  
+    
     #cisco_switches
       %fieldset
         %legend

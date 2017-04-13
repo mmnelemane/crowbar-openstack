@@ -24,6 +24,11 @@ en:
         node: 'Node'
         switch_ip: 'Cisco Switch IP'
         switch_port: 'Cisco Switch Port'
+      edit_cisco_apic_switch_ports:
+        apic_switch_ports: 'Provide Switch Details'
+        apic_switch_id: 'Switch ID'
+        apic_port_mac: 'Switch MAC Address'
+        apic_port_number: 'Switch Number'
       deploy:
         missing_os_sdn_network: 'The os_sdn network must be defined in template-network.json'
       edit_attributes:
@@ -53,6 +58,8 @@ en:
           multicast_group_hint: 'If empty, broadcast emulation will be disabled.'
         cisco_switches: 'Cisco Switch Credentials'
         cisco_ports: 'Assign Switch Ports'
+        apic_host: 'Cisco ACI host details' 
+        apic_switches: 'Cisco ACI switches data'
         switch_ip: 'IP Address'
         switch_port: 'Port'
         switch_user: 'Username'
