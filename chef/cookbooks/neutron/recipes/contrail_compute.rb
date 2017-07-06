@@ -127,3 +127,24 @@ file "/usr/lib/systemd/system/supervisor-vrouter.service" do
   owner "root"
   group node[:neutron][:platform][:group]
 end
+
+eth_addresses = node[:crowbar_wall][:network][:interfaces][:eth0][:addresses]
+eth_gateway = node[:crowbar_wall][:network][:interfaces][:eth0][:gateway]
+bash "set vhost interfaces" do
+  user "root"
+  code <<-EOF 
+    DEV_MAC=$(cat /sys/class/net/eth0/address)
+
+    ip link add vhost0 type vhost
+    vif --create vhost0 --mac $DEV_MAC
+
+    vif --add eth0 --mac $DEV_MAC --vrf 0 --vhost-phys --type physical
+    vif --add vhost0 --mac $DEV_MAC --vrf 0 --type vhost --xconnect eth0
+
+    ip address delete #{eth_addresses} dev eth0
+    ip address add #{eth_addresses} dev vhost0
+    ip link set dev vhost0 up
+    ip route add default via #{eth_gateway}"
+  EOF
+end
+
