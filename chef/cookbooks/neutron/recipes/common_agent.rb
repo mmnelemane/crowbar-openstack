@@ -62,6 +62,12 @@ bash "reload neighbour-table-overflow.conf" do
   subscribes :run, resources(cookbook_file: neighbour_table_overflow_file), :delayed
 end
 
+if neutron[:neutron][:networking_plugin] == "contrail" &&
+    node.roles.include?("nova-compute-kvm")
+  include_recipe "neutron::contrail_compute"
+  return
+end
+
 if neutron[:neutron][:networking_plugin] == "ml2" &&
     neutron[:neutron][:ml2_mechanism_drivers].include?("vmware_dvs") &&
     node.roles.include?("nova-compute-vmware")

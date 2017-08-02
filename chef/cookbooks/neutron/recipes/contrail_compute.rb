@@ -128,15 +128,26 @@ file "/usr/lib/systemd/system/supervisor-vrouter.service" do
   group node[:neutron][:platform][:group]
 end
 
-eth_addresses = node[:crowbar_wall][:network][:interfaces][:eth0][:addresses]
+# ADD vrouter and start vrouter
+bash "start vrouter" do
+  user "root"
+  code <<-EOF
+    modprobe --allow-unsupported vrouter
+    systemctl start supervisor-vrouter
+  EOF
+  not_if "lsmod | grep vrouter"
+end
+
+eth_addresses = node[:crowbar_wall][:network][:interfaces][:eth0][:addresses][0]
 eth_gateway = node[:crowbar_wall][:network][:interfaces][:eth0][:gateway]
 bash "set vhost interfaces" do
   user "root"
   code <<-EOF 
     DEV_MAC=$(cat /sys/class/net/eth0/address)
-
     ip link add vhost0 type vhost
     vif --create vhost0 --mac $DEV_MAC
+
+    sleep 6
 
     vif --add eth0 --mac $DEV_MAC --vrf 0 --vhost-phys --type physical
     vif --add vhost0 --mac $DEV_MAC --vrf 0 --type vhost --xconnect eth0
@@ -144,7 +155,10 @@ bash "set vhost interfaces" do
     ip address delete #{eth_addresses} dev eth0
     ip address add #{eth_addresses} dev vhost0
     ip link set dev vhost0 up
-    ip route add default via #{eth_gateway}"
+
+    sleep 6
+    ip route add default via #{eth_gateway}
   EOF
+  not_if {::File.exists?("/sys/class/net/vhost0")}
 end
 

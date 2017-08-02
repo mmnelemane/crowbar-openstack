@@ -99,10 +99,9 @@ if neutron[:neutron][:networking_plugin] == "contrail"
   py_version = node[:languages][:python][:version].split(/\.([^.]*)$/)[0]
   plugin_path = "/usr/lib/python#{py_version}/site-packages/neutron_plugin_contrail"
   lbaas_path = "/usr/lib/python#{py_version}/site-packages/neutron_lbaas"
-  service_plugins = "neutron_plugin_contrail.plugins.opencontrail.loadbalancer.v2.plugin.LoadBalancerPluginV2"
   neutron_core_plugin = "neutron_plugin_contrail.plugins.opencontrail.contrail_plugin.NeutronPluginContrailCoreV2"
   lb_service_provider = "LOADBALANCER:Opencontrail:neutron_plugin_contrail.plugins.opencontrail.loadbalancer.driver.OpencontrailLoadbalancerDriver:default"
-  api_extensions_path = "extensions:#{plugin_path}/extensions:#{lbaas_path}/extensions"
+  api_extensions_path = "#{plugin_path}/extensions"
   neutron_quota_driver = "neutron_plugin_contrail.plugins.opencontrail.quota.driver.QuotaDriver"
 end
 

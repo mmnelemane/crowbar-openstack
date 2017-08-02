@@ -51,10 +51,14 @@ end
 include_recipe "neutron::common_config"
 
 # set core plugin for neutron-server
-if node[:neutron][:networking_plugin] == "vmware"
-  core_link = "/etc/neutron/plugins/vmware/nsx.ini"
+core_link =
+case node[:neutron][:networking_plugin]
+when "vmware"
+  "/etc/neutron/plugins/vmware/nsx.ini"
+when "contrail"
+  "/etc/neutron/plugins/opencontrail/ContrailPlugin.ini"
 else
-  core_link = "/etc/neutron/plugins/ml2/ml2_conf.ini"
+  "/etc/neutron/plugins/ml2/ml2_conf.ini"
 end
 
 link "/etc/neutron/plugin.ini" do
@@ -238,9 +242,6 @@ end
 
 if node[:neutron][:networking_plugin] == "contrail"
   include_recipe "neutron::contrail_control"
-  if node.roles.include?("nova-compute-kvm")
-    include_recipe "neutron::contrail_compute"
-  end
 end
 
 if node[:neutron][:use_lbaas]
