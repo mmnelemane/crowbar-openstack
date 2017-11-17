@@ -157,7 +157,7 @@ metadata_proxy_secret = <%= @metadata_proxy_secret %>
 [NETWORKS]
 # control-channel IP address used by WEB-UI to connect to vnswad to fetch
 # required information (Optional)
-control_network_ip = localhost
+control_network_ip = <%= @node_ip %>
 
 [VIRTUAL-HOST-INTERFACE]
 # Everything in this section is mandatory
@@ -166,7 +166,7 @@ control_network_ip = localhost
 name=vhost0
 
 # IP address and prefix in ip/prefix_len format
-ip=localhost/24
+ip=<%= @node_ip %>/24
                                                                                                                     
 # Gateway IP address for virtual host
 gateway= <%= @gateway_api_server %>
@@ -184,7 +184,7 @@ physical_interface=eth0
 # this only if vhost interface is un-numbered in host-os. Agent will use one
 # of the compute_node_address to run services that need IP Address in host-os
 # (like metadata...)
-compute_node_address = localhost
+compute_node_address = <%= @node_ip %>
 
 # We can have multiple gateway sections with different indices in the
 # following format

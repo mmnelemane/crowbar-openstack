@@ -44,6 +44,8 @@ template "/etc/contrail/supervisord_vrouter.conf" do
   group node[:neutron][:platform][:group]
 end
 
+node_network = node[:crowbar_wall][:network][:interfaces][:eth0][:addresses].first
+node_ip = node_network.split("/").first
 template "/etc/contrail/contrail-vrouter-agent.conf" do
   cookbook "neutron"
   source "contrail-vrouter-agent.conf.erb"
@@ -54,6 +56,8 @@ template "/etc/contrail/contrail-vrouter-agent.conf" do
     contrail_api_server_ip: neutron[:neutron][:contrail][:api_server_ip],
     gateway_api_server: neutron[:neutron][:contrail][:gateway_server_ip],
     metadata_proxy_secret: neutron[:nova][:neutron_metadata_proxy_shared_secret]
+    node_network: node_network,
+    node_ip: node_ip
   )
 end
 
