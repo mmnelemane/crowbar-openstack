@@ -17,8 +17,16 @@ hyperv_compute_node = search(:node, "roles:nova-compute-hyperv") || []
 use_hyperv = node[:neutron][:networking_plugin] == "ml2" && !hyperv_compute_node.empty?
 zvm_compute_node = search(:node, "roles:nova-compute-zvm") || []
 use_zvm = node[:neutron][:networking_plugin] == "ml2" && !zvm_compute_node.empty?
+ml2_drivers = node[:neutron][:ml2_mechanism_drivers]
 use_vmware_dvs = node[:neutron][:networking_plugin] == "ml2" &&
-  node[:neutron][:ml2_mechanism_drivers].include?("vmware_dvs")
+  ml2_drivers.include?("vmware_dvs")
+
+# use of ml2 drivers "apic_gbp" and "cisco_apic_ml2" are deprecated upstream
+# starting from Ocata. Cisco does not provide support for these separate modes
+# anymore in Pike and later releases and recommends to use the Unified Mode
+# which is represented by ACI Integration Module (AIM) specified as ml2 
+# backend here. 
+use_apic = node[:neutron][:networking_plugin] == "ml2" && ml2_drivers.include?("apic_aim")
 
 pkgs = node[:neutron][:platform][:pkgs] + node[:neutron][:platform][:pkgs_fwaas]
 pkgs += node[:neutron][:platform][:pkgs_lbaas] if node[:neutron][:use_lbaas]
@@ -51,12 +59,17 @@ end
 include_recipe "neutron::common_config"
 
 # remove unused plugin config snippets
-all_plugin_snippets = [node[:neutron][:ml2_config_file], node[:neutron][:nsx_config_file]]
+all_plugin_snippets = [node[:neutron][:ml2_config_file],
+                       node[:neutron][:nsx_config_file]]
+
 used_plugin_snippets = []
 if node[:neutron][:networking_plugin] == "vmware"
   used_plugin_snippets << node[:neutron][:nsx_config_file]
 else
   used_plugin_snippets << node[:neutron][:ml2_config_file]
+end
+if node[:neutron][:ml2_mechanism_drivers].include?("apic_aim")
+  used_plugin_snippets << "/etc/neutron/plugins/ml2/ml2_conf_cisco_apic.ini"
 end
 
 (all_plugin_snippets - used_plugin_snippets).each do |config_file|
@@ -139,6 +152,9 @@ when "ml2"
   ml2_extension_drivers = ["dns", "port_security"]
   ml2_type_drivers = node[:neutron][:ml2_type_drivers]
   ml2_mechanism_drivers = node[:neutron][:ml2_mechanism_drivers].dup
+  if ml2_mechanism_drivers.include?("apic_aim")
+    ml2_extension_drivers.unshift("apic_aim")
+  end
   if use_hyperv
     ml2_mechanism_drivers.push("hyperv")
   end
@@ -227,13 +243,12 @@ when "vmware"
   end
 end
 
-if node[:neutron][:networking_plugin] == "ml2"
-  if node[:neutron][:ml2_mechanism_drivers].include?("cisco_nexus")
+if node[:neutron][:networking_plugin] == "ml2" &&
+    node[:neutron][:ml2_mechanism_drivers].include?("cisco_nexus")
     include_recipe "neutron::cisco_support"
-  elsif node[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2") ||
-      node[:neutron][:ml2_mechanism_drivers].include?("apic_gbp")
-    include_recipe "neutron::cisco_apic_support"
-  end
+end
+if use_apic
+  include_recipe "neutron::cisco_apic_support"
 end
 
 if node[:neutron][:use_lbaas]
@@ -330,45 +345,40 @@ if node[:neutron][:use_lbaas]
   end
 end
 
-if node[:neutron][:networking_plugin] == "ml2"
-  if node[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2")
-    # See comments for "neutron-db-manage migrate" above
-    db_synced = node[:neutron][:db_synced_apic_ml2]
-    is_founder = CrowbarPacemakerHelper.is_cluster_founder?(node)
-    execute "apic-ml2-db-manage upgrade head" do
+if use_apic
+  gbp_db_manage_command = "gbp-db-manage --config-file #{node[:neutron][:config_file]} upgrade head"
+  aim_db_manage_command = "aimctl --config-file #{node[:neutron][:config_file]} db-migration upgrade head"
+
+  db_synced = node[:neutron][:db_synced_apic]
+  is_founder = CrowbarPacemakerHelper.is_cluster_founder?(node)
+  
+  execute "gbp db-manage upgrade head" do
+    user node[:neutron][:user]
+    group node[:neutron][:group]
+    command "#{gbp_db_manage_command}"
+    only_if { !db_synced && (!ha_enabled || is_founder) }
+  end
+
+  execute "aim db-manage upgrade head" do
+    user node[:neutron][:user]
+    group node[:neutron][:group]
+    command "#{aim_db_manage_command}"
+    only_if { !db_synced && (!ha_enabled || is_founder) }
+  end
+  
+  execute "aim config update" do
       user node[:neutron][:user]
       group node[:neutron][:group]
-      command "apic-ml2-db-manage --config-dir /etc/neutron/neutron.conf.d upgrade head"
-      only_if { !db_synced && (!ha_enabled || is_founder) }
+      command "aimctl -c #{node[:neutron][:config_file]} config update"
+  end
+  
+  ruby_block "mark node for apic db-manage upgrade head" do
+    block do
+      node.set[:neutron][:db_synced_apic] = true
+      node.save
     end
-
-    ruby_block "mark node for apic-ml2-db-manage upgrade head" do
-      block do
-        node.set[:neutron][:db_synced_apic_ml2] = true
-        node.save
-      end
-      action :nothing
-      subscribes :create, "execute[apic-ml2-db-manage upgrade head]", :immediately
-    end
-  elsif node[:neutron][:ml2_mechanism_drivers].include?("apic_gbp")
-    # See comments for "neutron-db-manage migrate" above
-    db_synced = node[:neutron][:db_synced_apic_gbp]
-    is_founder = CrowbarPacemakerHelper.is_cluster_founder?(node)
-    execute "gbp-db-manage upgrade head" do
-      user node[:neutron][:user]
-      group node[:neutron][:group]
-      command "gbp-db-manage --config-dir /etc/neutron/neutron.conf.d upgrade head"
-      only_if { !db_synced && (!ha_enabled || is_founder) }
-    end
-
-    ruby_block "mark node for gbp-db-manage upgrade head" do
-      block do
-        node.set[:neutron][:db_synced_apic_gbp] = true
-        node.save
-      end
-      action :nothing
-      subscribes :create, "execute[gbp-db-manage upgrade head]", :immediately
-    end
+    action :nothing
+    subscribes :create, "execute[db-manage upgrade head]", :immediately
   end
 end
 

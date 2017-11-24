@@ -72,12 +72,22 @@ default[:neutron][:apic][:username] = "admin"
 default[:neutron][:apic][:password] = ""
 default[:neutron][:apic][:optimized_metadata] = true
 default[:neutron][:apic][:optimized_dhcp] = true
+default[:neutron][:apic][:phys_domain] = "phys"
+default[:neutron][:apic][:vm_domains] = [{
+  domain_name: "soc",
+  vlan_ranges: "2000-2199",
+  vmm_type:    "OpenStack"
+}]
 
 default[:neutron][:apic][:opflex] = [{
   pod: "",
   nodes: [],
-  peer_ip: "",
-  peer_port: "",
+  integration_bridge: "br-int",
+  access_bridge: "br-fabric",
+  peers: [{
+    ip: "",
+    port: ""
+  }],
   encap: "vxlan",
   vxlan: {
     uplink_iface: "vlan.4093",
@@ -90,7 +100,6 @@ default[:neutron][:apic][:opflex] = [{
     encap_iface: ""
   }
 }]
-
 
 case node[:platform_family]
 when "suse"
@@ -125,9 +134,14 @@ when "suse"
                    "ruby2.1-rubygem-faraday"],
     cisco_pkgs: ["python-networking-cisco"],
     cisco_apic_pkgs: ["python-apicapi",
-                      "python-neutron-ml2-driver-apic"],
-    cisco_apic_gbp_pkgs: ["openstack-neutron-gbp",
-                          "python-gbpclient"],
+                      "python-acitoolkit",
+                      "python-neutron-ml2-driver-apic",
+                      "aci-integration-module",
+                      "openstack-neutron-gbp",
+                      "openstack-heat-gbp",
+                      "python-neutron-gbp",
+                      "python-gbpclient",
+                      "openstack-horizon-plugin-gbp-ui"],
     cisco_opflex_pkgs: ["agent-ovs",
                         "lldpd",
                         "openstack-neutron-opflex-agent"],
@@ -170,9 +184,14 @@ when "rhel"
     nsx_pkgs: [""],
     cisco_pkgs: ["python-networking-cisco"],
     cisco_apic_pkgs: ["python-apicapi",
-                      "python-neutron-ml2-driver-apic"],
-    cisco_apic_gbp_pkgs: ["openstack-neutron-gbp",
-                          "python-gbpclient"],
+                      "python-acitoolkit",
+                      "python-neutron-ml2-driver-apic",
+                      "aci-integration-module",
+                      "openstack-neutron-gbp",
+                      "openstack-heat-gbp",
+                      "python-neutron-gbp",
+                      "python-gbpclient",
+                      "openstack-dashboard-gbp"],
     cisco_opflex_pkgs: ["agent-ovs",
                         "lldpd",
                         "neutron-opflex-agent"],
@@ -216,7 +235,6 @@ else
     nsx_pkgs: [""],
     cisco_pkgs: [""],
     cisco_apic_pkgs: [""],
-    cisco_apic_gbp_pkgs: [""],
     cisco_opflex_pkgs: [""],
     infoblox_pkgs: [],
     vmware_vsphere_pkg: "openstack-neutron-vsphere",

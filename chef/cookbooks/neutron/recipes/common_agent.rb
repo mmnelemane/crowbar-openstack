@@ -82,9 +82,11 @@ if neutron[:neutron][:networking_plugin] == "ml2" &&
 end
 
 # Skip working with regular agents if Cisco ACI is used
-return if neutron[:neutron][:networking_plugin] == "ml2" &&
-    (neutron[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2") ||
-    neutron[:neutron][:ml2_mechanism_drivers].include?("apic_gbp"))
+if neutron[:neutron][:networking_plugin] == "ml2" &&
+    neutron[:neutron][:ml2_mechanism_drivers].include?("apic_aim")
+  include_recipe "neutron::cisco_apic_agents"
+  return # skip anything else in this recipe
+end
 
 multiple_external_networks = !neutron[:neutron][:additional_external_networks].empty?
 

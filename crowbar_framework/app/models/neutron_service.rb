@@ -37,7 +37,7 @@ class NeutronService < OpenstackServiceObject
   end
 
   def self.networking_ml2_mechanism_drivers_valid
-    ["linuxbridge", "openvswitch", "cisco_nexus", "vmware_dvs", "cisco_apic_ml2", "apic_gbp"]
+    ["linuxbridge", "openvswitch", "cisco_nexus", "vmware_dvs", "apic_aim"]
   end
 
   class << self
@@ -229,7 +229,41 @@ class NeutronService < OpenstackServiceObject
         !ml2_type_drivers.include?("vlan")
       validation_error I18n.t("barclamp.#{@bc_name}.validation.vmware_dvs_vlan")
     end
+ 
+    # Checks for Cisco ACI ml2 driver
+    if ml2_mechanism_drivers.include?("apic_aim")
+      # openvswitch should not be used when apic_aim mechanism driver is used
+      if ml2_mechanism_drivers.include?("openvswitch")
+        validation_error I18n.t("barclamp.#{@bc_name}.validation.cisco_apic_ovs")
+      end
 
+      if ml2_mechanism_drivers.include?("linuxbridge")
+        validation_error I18n.t("barclamp.#{@bc_name}.validation.cisco_apic_linuxbridge")
+      end
+
+      # apic_aim mechanism driver needs opflex as the type_driver
+      unless ml2_type_drivers.include?("opflex")
+        validation_error I18n.t("barclamp.#{@bc_name}.validation.cisco_apic_type")
+      end
+
+      # Validate if ACI configurations are provided
+      if proposal["attributes"]["neutron"]["apic"].nil? ||
+          proposal["attributes"]["neutron"]["apic"].empty?
+        validation_error I18n.t("barclamp.#{@bc_name}.validation.cisco_apic_no_config")
+      end
+
+      # Cisco APIC already distributes neutron services not needing DVR
+      if proposal["attributes"]["neutron"]["use_dvr"]
+        validation_error I18n.t("barcalmp.#{@bc_name}.validation.cisco_apic_dvr")
+      end
+
+      # At least one mechanism driver(vlan/vxlan) is needed for encapsulation with opflex
+      if ml2_type_drivers.include?("opflex") 
+        unless ml2_type_drivers.include?("vxlan") || ml2_type_drivers.include?("vlan")
+          validation_error I18n.t("barclamp.#{@bc_name}.validation.cisco_apic_encap")
+        end
+      end
+    end
 
     # for now, openvswitch and linuxbrige can't be used in parallel
     if ml2_mechanism_drivers.include?("openvswitch") &&
