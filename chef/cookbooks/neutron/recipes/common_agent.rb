@@ -82,8 +82,7 @@ if neutron[:neutron][:networking_plugin] == "ml2" &&
 end
 
 if neutron[:neutron][:networking_plugin] == "ml2" &&
-    (neutron[:neutron][:ml2_mechanism_drivers].include?("cisco_apic_ml2") ||
-    neutron[:neutron][:ml2_mechanism_drivers].include?("apic_gbp"))
+    neutron[:neutron][:ml2_mechanism_drivers].include?("apic_aim")
   include_recipe "neutron::cisco_apic_agents"
   return # skip anything else in this recipe
 end

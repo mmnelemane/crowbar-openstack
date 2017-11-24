@@ -26,17 +26,17 @@ end
 ml2_mech_drivers = neutron[:neutron][:ml2_mechanism_drivers]
 ml2_type_drivers = neutron[:neutron][:ml2_type_drivers]
 
-return unless ml2_mech_drivers.include?("cisco_apic_ml2") ||
-    ml2_mech_drivers.include?("apic_gbp")
+return unless ml2_mech_drivers.include?("apic_aim")
 
 node[:neutron][:platform][:cisco_apic_pkgs].each { |p| package p }
 
-# We may need to review the ovs packages once we have better
-# clarity on what packages and kernel modules will be supported
-# for APIC integration.(eg: current version of APIC requires
-# openvswitch 2.4 with upstream kmp modules instead of kernel
-# provided modules). This will install default openvswitch
-# packages until the correct set is finalized.
+
+# This will install the default ovs packages.
+# The agent-ovs however is built on a separate
+# static ovs library based on version supported
+# for this particular OpenStack Release. The build
+# can be found in the following OBS Project:
+# Cloud:OpenStack:<Version>:cisco-apic
 node[:network][:ovs_pkgs].each { |p| package p }
 
 service node[:network][:ovs_service] do
@@ -76,7 +76,7 @@ if node.roles.include?("nova-compute-kvm")
   template agent_config_path do
     cookbook "neutron"
     source "openvswitch_agent.ini.erb"
-    owner "root"
+    owner node[:neutron][:platform][:user]
     group node[:neutron][:platform][:group]
     mode "0640"
     variables(
@@ -103,14 +103,15 @@ if node.roles.include?("nova-compute-kvm")
     cookbook "neutron"
     source "10-opflex-agent-ovs.conf.erb"
     mode "0755"
-    owner "root"
+    owner neutron[:neutron][:platform][:user]
     group neutron[:neutron][:platform][:group]
     variables(
       opflex_apic_domain_name: neutron[:neutron][:apic][:system_id],
       hostname: node[:hostname],
       socketgroup: neutron[:neutron][:platform][:group],
-      opflex_peer_ip: opflex[:peer_ip],
-      opflex_peer_port: opflex[:peer_port],
+      opflex_int_bridge: opflex[:integration_bridge],
+      opflex_access_bridge: opflex[:access_bridge],
+      opflex_peers: opflex[:peers],
       opflex_vxlan_encap_iface: opflex[:vxlan][:encap_iface],
       opflex_vxlan_uplink_iface: opflex[:vxlan][:uplink_iface],
       opflex_vxlan_uplink_vlan: opflex[:vxlan][:uplink_vlan],
@@ -118,6 +119,8 @@ if node.roles.include?("nova-compute-kvm")
       opflex_vxlan_remote_port: opflex[:vxlan][:remote_port],
       # TODO(mmnelemane) : update VLAN encapsulation config when it works.
       # Currently set to VXLAN by default but can be modified from proposal.
+      # VLAN encapsulation is mandatory if using UCS with ACI since Cisco
+      # currently does not support VXLAN encapsulation with UCS.
       ml2_type_drivers: ml2_type_drivers
     )
   end
