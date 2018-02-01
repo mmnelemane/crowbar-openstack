@@ -72,6 +72,11 @@
                             }}
                           }}
                         }}
+                      },
+                      "apic_vmms": { "type" : "map", "required" : true, "mapping" : {
+                        = : { "type" : "map", "required" : true, "mapping" : {
+                          = : { "type": "str", "required": true }}
+                        }}
                       }
                     }},
                     "allow_overlapping_ips": { "type": "bool", "required": true },
