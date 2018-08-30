@@ -26,17 +26,17 @@ end
 ml2_mech_drivers = neutron[:neutron][:ml2_mechanism_drivers]
 ml2_type_drivers = neutron[:neutron][:ml2_type_drivers]
 
-return unless ml2_mech_drivers.include?("cisco_apic_ml2") ||
-    ml2_mech_drivers.include?("apic_gbp")
+return unless ml2_mech_drivers.include?("apic_aim")
 
 node[:neutron][:platform][:cisco_apic_pkgs].each { |p| package p }
 
-# We may need to review the ovs packages once we have better
-# clarity on what packages and kernel modules will be supported
-# for APIC integration.(eg: current version of APIC requires
-# openvswitch 2.4 with upstream kmp modules instead of kernel
-# provided modules). This will install default openvswitch
-# packages until the correct set is finalized.
+
+# This will install the default ovs packages.
+# The agent-ovs however is built on a separate
+# static ovs library based on version supported
+# for this particular OpenStack Release. The build
+# can be found in the following OBS Project: 
+# Cloud:OpenStack:<Version>:cisco-apic
 node[:network][:ovs_pkgs].each { |p| package p }
 
 service node[:network][:ovs_service] do
@@ -108,6 +108,8 @@ template opflex_agent_conf do
     opflex_apic_domain_name: neutron[:neutron][:apic][:system_id],
     hostname: node[:hostname],
     socketgroup: neutron[:neutron][:platform][:group],
+    opflex_int_bridge: opflex[:integration_bridge],
+    opflex_access_bridge: opflex[:access_bridge],
     opflex_peer_ip: opflex[:peer_ip],
     opflex_peer_port: opflex[:peer_port],
     opflex_vxlan_encap_iface: opflex[:vxlan][:encap_iface],
@@ -122,7 +124,7 @@ template opflex_agent_conf do
 end
 
 neutron_metadata do
-  use_cisco_apic_ml2_driver true
+  use_cisco_apic_aim true
   neutron_node_object neutron
 end
 
